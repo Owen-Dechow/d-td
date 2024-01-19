@@ -16,17 +16,29 @@ pub mod actions {
         #[clap(about = "Delete an item")]
         Delete(DeleteArgs),
 
-        #[clap(about = "List all items")]
-        List(ListArgs),
+        #[clap(about = "Clear all items from list")]
+        Clear(ClearArgs),
 
         #[clap(about = "Toggle the state of an item")]
         Toggle(ToggleArgs),
 
+        #[clap(about = "List all items")]
+        List(ListArgs),
+
         #[clap(about = "Move item from one position to another")]
         Move(MoveArgs),
 
-        #[clap(about = "Alphabatize list")]
-        Order(OrderArgs),
+        #[clap(about = "Shift an item from one position to another")]
+        Shift(ShiftArgs),
+
+        #[clap(about = "Order list alphabetically")]
+        OrderAlpha(OrderAlphaArgs),
+
+        #[clap(about = "Order list by date")]
+        OrderDate(OrderDateArgs),
+
+        #[clap(about = "Get the path of targeted db")]
+        Declare(DeclareArgs),
 
         #[clap(about = "Initialize new list at current position")]
         Init(InitArgs),
@@ -42,12 +54,12 @@ pub mod actions {
 
     #[derive(Args)]
     pub struct DeleteArgs {
-        pub index: usize,
+        pub index: i8,
     }
 
     #[derive(Args)]
     pub struct ToggleArgs {
-        pub index: usize,
+        pub index: i8,
     }
 
     #[derive(Args)]
@@ -55,13 +67,37 @@ pub mod actions {
 
     #[derive(Args)]
     pub struct MoveArgs {
-        pub index: usize,
-        pub to: usize,
+        pub index: i8,
+        pub to: i8,
     }
 
     #[derive(Args)]
-    pub struct OrderArgs {
-        #[clap(short, long, default_value_t = false)]
+    pub struct OrderAlphaArgs {
+        #[clap(
+            short,
+            long,
+            default_value_t = false,
+            help = "Set to reverse alphabetical order"
+        )]
+        pub reverse: bool,
+
+        #[clap(
+            short,
+            long,
+            default_value_t = false,
+            help = "Make ordering case sensitive"
+        )]
+        pub strict: bool,
+    }
+
+    #[derive(Args)]
+    pub struct OrderDateArgs {
+        #[clap(
+            short,
+            long,
+            default_value_t = false,
+            help = "Set to reverse alphabetical order"
+        )]
         pub reverse: bool,
     }
 
@@ -70,4 +106,16 @@ pub mod actions {
 
     #[derive(Args)]
     pub struct DestroyArgs {}
+
+    #[derive(Args)]
+    pub struct DeclareArgs {}
+
+    #[derive(Args)]
+    pub struct ShiftArgs {
+        pub index: i8,
+        pub shift: i8,
+    }
+
+    #[derive(Args)]
+    pub struct ClearArgs {}
 }
