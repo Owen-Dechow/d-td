@@ -1,6 +1,13 @@
 # d-td
 An exhaustive todo list cli tool made with rust.
 
+## Installation
+```
+cargo install d-td
+```
+* crates.io page: https://crates.io/crates/d-td/versions
+* github repo: https://github.com/Owen-Dechow/d-td
+
 ## CLI Help Menu
 ```
 Usage: d-td <COMMAND>
