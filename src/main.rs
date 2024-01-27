@@ -1,8 +1,12 @@
 mod cli;
+
+use cli::colors::*;
+
 use clap::Parser as _;
 use cli::actions::{Action, Arguments};
 
 use std::{
+    cmp::Ordering,
     env,
     io::{Error as IOError, ErrorKind::AlreadyExists as IOAlreadyExists, Read},
     path::PathBuf,
@@ -10,15 +14,13 @@ use std::{
     usize,
 };
 
-use colored::Colorize;
-
-use datetime::{Instant, LocalDateTime};
+use dtt::DateTime;
 
 const DB_NAME: &str = ".todo.db.txt";
 const DB_KEY_VAL_SEPERATOR: &str = "X4<'}/ghB^$M{@ugC=s~";
 const DB_ENTRY_SEPERATOR: &str = "/!>(=]]4>gNdEhXm)he7";
 
-struct ToDoEntry(String, bool, LocalDateTime);
+struct ToDoEntry(String, bool, DateTime);
 
 struct ToDo {
     entries: Vec<ToDoEntry>,
@@ -28,23 +30,30 @@ struct ToDo {
 impl ToDo {
     fn insert(&mut self, key: &String) {
         self.entries
-            .push(ToDoEntry(key.to_string(), false, LocalDateTime::now()));
+            .push(ToDoEntry(key.to_string(), false, DateTime::new()));
     }
 
     fn save(&self) -> Result<(), IOError> {
         let mut content = String::new();
 
         for entry in &self.entries {
-            let time_instant = entry.2.to_instant();
-
             let record = format!(
-                "{}{}{}{}{}{}",
+                "{}{}{}{}{}{}{}{}",
                 entry.0,
                 DB_KEY_VAL_SEPERATOR,
                 entry.1,
                 DB_KEY_VAL_SEPERATOR,
-                format!("{}:{}", time_instant.seconds(), time_instant.milliseconds()),
-                DB_ENTRY_SEPERATOR
+                {
+                    let d = &entry.2;
+                    let date = d.iso_8601.split(" ").nth(0).unwrap();
+                    let hour = d.hour;
+                    let min = d.minute;
+                    let sec = d.second;
+                    format!("{date}T{hour:0>2}:{min:0>2}:{sec:0>2}+00:00",)
+                },
+                DB_KEY_VAL_SEPERATOR,
+                entry.2.microsecond,
+                DB_ENTRY_SEPERATOR,
             );
             content.push_str(&record);
         }
@@ -78,7 +87,7 @@ impl ToDo {
 
             let s = l.split(DB_KEY_VAL_SEPERATOR).collect::<Vec<&str>>();
 
-            if s.len() != 3 {
+            if s.len() != 4 {
                 println!("Skipping corrupted data line: {:?}", s);
                 continue;
             }
@@ -93,33 +102,20 @@ impl ToDo {
                 }
             };
 
-            let date = {
-                let s = s[2].split(":").collect::<Vec<&str>>();
-                if s.len() != 2 {
-                    println!("Skipping corrupted data line: {:?}", s);
+            let mut date = match DateTime::parse(s[2]) {
+                Ok(date) => date,
+                Err(_) => {
+                    println!("Skipping corrupted data: {}", s[2]);
                     continue;
                 }
+            };
 
-                let seconds = match i64::from_str(s[0]) {
-                    Ok(val) => val,
-                    Err(_) => {
-                        println!("Skipping corrupted data line: {}", s[0]);
-                        continue;
-                    }
-                };
-
-                let milliseconds = match i16::from_str(s[1]) {
-                    Ok(val) => val,
-                    Err(_) => {
-                        println!("Skipping corrupted data line: {}", s[1]);
-                        continue;
-                    }
-                };
-
-                let instant = Instant::at_ms(seconds, milliseconds);
-
-                // return local date time
-                LocalDateTime::from_instant(instant)
+            date.microsecond = match s[3].parse::<u32>() {
+                Ok(micro) => micro,
+                Err(_) => {
+                    println!("Skipping corrupted data: {}", s[3]);
+                    continue;
+                }
             };
 
             entries.push(ToDoEntry(key, val, date));
@@ -145,10 +141,10 @@ impl ToDo {
 
             match entry.1 {
                 true => {
-                    println!("{}", format!("{} [X]: {}", i, entry.0).green());
+                    println!("{}", format!("{GREEN}{} [X]: {}{RESET}", i, entry.0));
                 }
                 false => {
-                    println!("{}", format!("{} [ ]: {}", i, entry.0).red());
+                    println!("{}", format!("{RED}{} [ ]: {}{RESET}", i, entry.0));
                 }
             };
         }
@@ -210,12 +206,34 @@ impl ToDo {
     }
 
     fn order_date(&mut self, reverse: bool) {
+        let cmp = |a: &DateTime, b: &DateTime| -> Ordering {
+            if a.year > b.year {
+                return Ordering::Greater;
+            } else if a.month > b.month {
+                return Ordering::Greater;
+            } else if a.day > b.day {
+                return Ordering::Greater;
+            } else if a.hour > b.hour {
+                return Ordering::Greater;
+            } else if a.minute > b.minute {
+                return Ordering::Greater;
+            } else if a.second > b.second {
+                return Ordering::Greater;
+            } else if a.microsecond > b.microsecond {
+                return Ordering::Greater;
+            } else if a.microsecond == b.microsecond {
+                return Ordering::Equal;
+            } else {
+                return Ordering::Less;
+            }
+        };
+
         if reverse {
             self.entries
-                .sort_by(|b: &ToDoEntry, a: &ToDoEntry| a.2.cmp(&b.2));
+                .sort_by(|b: &ToDoEntry, a: &ToDoEntry| cmp(&a.2, &b.2));
         } else {
             self.entries
-                .sort_by(|a: &ToDoEntry, b: &ToDoEntry| a.2.cmp(&b.2));
+                .sort_by(|a: &ToDoEntry, b: &ToDoEntry| cmp(&a.2, &b.2));
         }
     }
 
@@ -269,16 +287,19 @@ impl ToDo {
 
 fn attempt_save(to_do: &ToDo, message: String) {
     match to_do.save() {
-        Ok(_) => println!("{}", message.green()),
+        Ok(_) => println!("{GREEN}{}{RESET}", message),
         Err(err) => println!(
             "{}",
-            format!("An error occurred while attempting to save data: ({})", err).red()
+            format!(
+                "{RED}An error occurred while attempting to save data: ({}){RESET}",
+                err
+            )
         ),
     };
 }
 
 fn no_item_found(index: &i8) {
-    println!("{}", format!("No item found {}", index).red());
+    println!("{}", format!("{RED} No item found {}{RESET}", index));
 }
 
 fn run_action(to_do: &mut ToDo, args: Arguments) {
@@ -381,9 +402,11 @@ fn run_action(to_do: &mut ToDo, args: Arguments) {
             match ToDo::init() {
                 Ok(_) => println!(
                     "{}",
-                    format!("New todo list initalized, run add command to get started").green()
+                    format!(
+                        "{GREEN}New todo list initalized, run add command to get started{RESET}"
+                    )
                 ),
-                Err(err) => println!("{}", format!("Error initalizing db: ({})", err).red()),
+                Err(err) => println!("{}", format!("{RED}Error initalizing db: ({}){RESET}", err)),
             };
         }
 
@@ -396,7 +419,7 @@ fn run_action(to_do: &mut ToDo, args: Arguments) {
         }
 
         Action::Declare(_args) => {
-            println!("{}", format!("{}", to_do.db_path.display()).green());
+            println!("{}", format!("{GREEN}{}{RESET}", to_do.db_path.display()));
         }
 
         Action::Shift(args) => {
@@ -430,7 +453,7 @@ fn run_action(to_do: &mut ToDo, args: Arguments) {
 fn main() {
     let bar = String::from("-").repeat(40);
     let header = "| TODO |";
-    println!("{}", format!("{}{}{}", bar, header, bar).blue());
+    println!("{}", format!("{BLUE}{}{}{}{RESET}", bar, header, bar));
 
     let args = Arguments::parse();
     let mut to_do = ToDo::new().expect("Initialisation of db failed");
@@ -438,6 +461,11 @@ fn main() {
     run_action(&mut to_do, args);
     println!(
         "{}",
-        format!("{}{}{}", bar, String::from("-").repeat(header.len()), bar).blue()
+        format!(
+            "{BLUE}{}{}{}{RESET}",
+            bar,
+            String::from("-").repeat(header.len()),
+            bar
+        )
     );
 }
