@@ -19,6 +19,25 @@ use dtt::DateTime;
 const DB_NAME: &str = ".todo.db.txt";
 const DB_KEY_VAL_SEPERATOR: &str = "X4<'}/ghB^$M{@ugC=s~";
 const DB_ENTRY_SEPERATOR: &str = "/!>(=]]4>gNdEhXm)he7";
+const DB_STARTMAKER: &str = "ohIw*s-^ZP;4SYF/Wl#:{*zpKWpshX&r*VZ`-UvVJr$A3)+n{b?`(bnY;b1{u";
+const INFORMATION: &str = {
+    r#"
++---------------------------------------------------+
+|  d-td (Dechow Todo)                               |
+|  An exhaustive todo list cli tool made with rust. |
+|  Crate: https://crates.io/crates/d-td/versions    |
+|  Github: https://github.com/Owen-Dechow/d-td      |
++---------------------------------------------------+
+"#
+};
+const DBINFORMATION: &str = {
+    r#"d-td (Dechow Todo) Database
+To get started with d-td install using: `cargo install d-td`
+Crate: https://crates.io/crates/d-td/versions
+Github: https://github.com/Owen-Dechow/d-td
+
+"#
+};
 
 struct ToDoEntry(String, bool, DateTime);
 
@@ -57,7 +76,9 @@ impl ToDo {
             );
             content.push_str(&record);
         }
-        return std::fs::write(&self.db_path, content);
+
+        let db = format!("{}{}{}", DBINFORMATION, DB_STARTMAKER, content);
+        return std::fs::write(&self.db_path, db);
     }
 
     fn new() -> Result<ToDo, IOError> {
@@ -78,6 +99,10 @@ impl ToDo {
 
         let mut content = String::new();
         file.read_to_string(&mut content)?;
+        content = match content.split(DB_STARTMAKER).nth(1) {
+            Some(content) => content.to_string(),
+            None => content,
+        };
 
         let mut entries = Vec::<ToDoEntry>::new();
         for l in content.split(DB_ENTRY_SEPERATOR) {
@@ -436,6 +461,10 @@ fn run_action(to_do: &mut ToDo, args: Arguments) {
                 &to_do,
                 format!("Todo db at {} has been cleard", to_do.db_path.display()),
             );
+        }
+
+        Action::Info(_args) => {
+            println!("{}", INFORMATION)
         }
     };
 }

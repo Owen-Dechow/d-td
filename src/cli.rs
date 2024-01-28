@@ -45,6 +45,9 @@ pub mod actions {
 
         #[clap(about = "Destroy db")]
         Destroy(DestroyArgs),
+
+        #[clap(about = "Application information")]
+        Info(InfoArgs),
     }
 
     #[derive(Args)]
@@ -118,6 +121,9 @@ pub mod actions {
 
     #[derive(Args)]
     pub struct ClearArgs {}
+
+    #[derive(Args)]
+    pub struct InfoArgs {}
 }
 
 pub mod colors {
