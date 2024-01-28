@@ -8,7 +8,7 @@ use cli::actions::{Action, Arguments};
 use std::{
     cmp::Ordering,
     env,
-    io::{Error as IOError, ErrorKind::AlreadyExists as IOAlreadyExists, Read},
+    io::{Error as IOError, Read},
     path::PathBuf,
     str::FromStr,
     usize,
@@ -238,14 +238,7 @@ impl ToDo {
     }
 
     fn init() -> Result<std::fs::File, IOError> {
-        if PathBuf::from(DB_NAME).is_file() {
-            return Err(IOError::new(
-                IOAlreadyExists,
-                "Todo db for current directory already exists",
-            ));
-        } else {
-            return std::fs::File::create(DB_NAME);
-        }
+        return std::fs::File::create(DB_NAME);
     }
 
     fn destroy(&self) -> std::io::Result<()> {
@@ -400,11 +393,8 @@ fn run_action(to_do: &mut ToDo, args: Arguments) {
 
         Action::Init(_args) => {
             match ToDo::init() {
-                Ok(_) => println!(
-                    "{}",
-                    format!(
-                        "{GREEN}New todo list initalized, run add command to get started{RESET}"
-                    )
+                Ok(_file) => println!(
+                    "{GREEN}New todo list initalized, run add command to get started{RESET}"
                 ),
                 Err(err) => println!("{}", format!("{RED}Error initalizing db: ({}){RESET}", err)),
             };
@@ -455,17 +445,23 @@ fn main() {
     let header = "| TODO |";
     println!("{}", format!("{BLUE}{}{}{}{RESET}", bar, header, bar));
 
-    let args = Arguments::parse();
-    let mut to_do = ToDo::new().expect("Initialisation of db failed");
+    match Arguments::try_parse() {
+        Ok(args) => match ToDo::new() {
+            Ok(mut to_do) => {
+                run_action(&mut to_do, args);
+            }
+            Err(err) => println!(
+                "{RED}Could not esablish connection to database: {}{RESET}",
+                err
+            ),
+        },
+        Err(err) => println!("{}", err),
+    };
 
-    run_action(&mut to_do, args);
     println!(
-        "{}",
-        format!(
-            "{BLUE}{}{}{}{RESET}",
-            bar,
-            String::from("-").repeat(header.len()),
-            bar
-        )
+        "{BLUE}{}{}{}{RESET}",
+        bar,
+        String::from("-").repeat(header.len()),
+        bar
     );
 }
