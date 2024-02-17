@@ -432,11 +432,9 @@ fn run_action(to_do: &mut ToDo, args: Arguments) {
                 Err(err) => println!("Error destroying db: {}", err),
             };
         }
-
         Action::Declare(_args) => {
             println!("{}", format!("{GREEN}{}{RESET}", to_do.db_path.display()));
         }
-
         Action::Shift(args) => {
             let idx = to_do.clamp_index(args.index as i8 - 1);
             let to = to_do.loop_index(idx as i8 + args.shift);
